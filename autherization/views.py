@@ -39,13 +39,13 @@ class userRegister(APIView):
         if(len(check)>0):return finalResponse(success=False,data=[],message="user already exists",status_code=400)
         
         # hash the password
-        password=hashpw(password.encode(),gensalt())
+        hash_password=hashpw(password.encode("utf-8"), gensalt())
         
         #generate OTP
         otp=random.randint(1001,9999)
         
         # if all details are provided  create user and send otp for verification
-        user=UserModel(name=name,email=email,password=password)
+        user=UserModel(name=name,email=email,password=hash_password)
         
         # send the mail
         result=sendOTPEmail(emailTo=email,name=name,otp=otp)
@@ -95,7 +95,7 @@ class VerfiyOTP(APIView):
 
 class resendOTP(APIView):
     def get(self,request,*args,**kwargs):
-        email=request.query_params.get("email")
+        email=request.query_params.get("email") or request.body.get("email")
         if(email is None): return incompleteDetailsResponse()
         
          #check if user exists
@@ -130,3 +130,55 @@ class logout(APIView):
         user.save()
         return  logouthelper()
                           
+                          
+                          
+class login(APIView):
+     def post(self,request,*args,**kwargs):
+        #  get data from the body
+        email=request.data.get("email")
+        password=request.data.get("password")
+        
+        #check if any detail is missing
+        if( email is None or password is None):return incompleteDetailsResponse()
+        
+        #check if user already exists or not
+        user=UserModel.objects.filter(email=email).first()
+        if(user is None ):return finalResponse(success=False,data=[],message="user doesn't exists",status_code=404)
+        
+        #match password
+        print(user.password)
+        if(checkpw(password=password.encode("utf-8"),hashed_password=user.password)==False):return finalResponse(success=False,data=[],message="invalid credentials",status_code=401)
+        
+        
+        # check if 2nd factor auth is enabled
+        if(user.is_two_factor_auth_enabled): 
+             otp=random.randint(1001,9999)
+        
+        # send the mail
+        result=sendOTPEmail(emailTo=email,name=user.name,otp=otp)
+        
+        #save otp and ot expire  in user and create it
+        user.otp=otp
+        user.otpExpire= timezone.now()+timedelta(minutes=10)
+        user.save()
+        
+        #return the result
+        return finalResponse(True,result,"verification otp sent",201)
+                 
+            
+       
+        user.is_active=True
+        user.save()
+        #serialize the data
+        serialized_data=userModelSerializer(user,many=False)
+         
+        #create token and set it into cookies
+        token=generate_jwt_token(user.id)
+         
+        
+        # send response
+        return finalResponse(True,serialized_data.data,"login successful",200,token=token)
+       
+        
+         
+                                  

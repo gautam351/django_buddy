@@ -12,7 +12,7 @@ class UserModel(models.Model):
     id=models.AutoField(primary_key=True)
     name=models.CharField(max_length=55)
     email=models.EmailField(unique=True)
-    password=models.CharField(max_length=256)
+    password=models.BinaryField(max_length=500)
     is_verified=models.BooleanField(default=False)
     date_created=models.DateTimeField(default=timezone.now)
     is_active=models.BooleanField(default=True)
