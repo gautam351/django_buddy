@@ -30,7 +30,7 @@ class userRegister(APIView):
         name=request.data.get("name")
         email=request.data.get("email")
         password=request.data.get("password")
-        
+        role=request.data.get("role")
         #check if any detail is missing
         if(name is None or email is None or password is None):return incompleteDetailsResponse()
         
@@ -46,7 +46,7 @@ class userRegister(APIView):
         
         # if all details are provided  create user and send otp for verification
         user=UserModel(name=name,email=email,password=hash_password)
-        
+        if(role is not None and (role=="edge" or role=="admin")): user.role=role
         # send the mail
         result=sendOTPEmail(emailTo=email,name=name,otp=otp)
         
@@ -95,7 +95,7 @@ class VerfiyOTP(APIView):
 
 class resendOTP(APIView):
     def get(self,request,*args,**kwargs):
-        email=request.query_params.get("email") or request.body.get("email")
+        email=request.query_params.get("email") or request.data.get("email")
         if(email is None): return incompleteDetailsResponse()
         
          #check if user exists
@@ -167,18 +167,32 @@ class login(APIView):
                  
             
        
-        user.is_active=True
-        user.save()
-        #serialize the data
-        serialized_data=userModelSerializer(user,many=False)
-         
-        #create token and set it into cookies
-        token=generate_jwt_token(user.id)
-         
-        
-        # send response
-        return finalResponse(True,serialized_data.data,"login successful",200,token=token)
+      
        
         
-         
-                                  
+
+class forgetPassword(APIView):
+    def post(self,request,*args,**kwargs):
+        otp=request.data.get("otp")
+        password=request.data.get("password")         
+        email=request.data.get("email")   
+        
+        # check for complete details
+        if(otp is None or otp=="" or password is None or email is None): return incompleteDetailsResponse()
+        
+        # check for user existance
+        user=UserModel.objects.filter(email=email).first()
+        
+        if(user is None ):return finalResponse(success=False,data=[],message="user doesn't exists",status_code=404)
+        
+        #check if otp 
+        if(user.otp!=otp or user.otpExpire is None or user.otpExpire<timezone.now()):return finalResponse(success=False,data=[],message="otp invalid",status_code=404)      
+        
+        #change the password
+        hash_password=hashpw(password.encode("utf-8"), gensalt())        
+        
+        user.password=hash_password
+        user.otp="";user.otpExpire=None
+        user.save()
+        return finalResponse(success=True,data=[],message="password changed successfullt",status_code=200)
+                              
