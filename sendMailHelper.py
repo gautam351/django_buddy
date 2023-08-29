@@ -8,8 +8,7 @@ load_dotenv()
 def sendOTPEmail(emailTo,name,otp):
     api_key = os.getenv("MJ_APIKEY_PUBLIC")
     api_secret = os.getenv("MJ_APIKEY_PRIVATE")
-    print(api_key)
-    print(api_secret)
+    
     
     mailjet = Client(auth=(api_key, api_secret), version='v3.1')
     data = {

@@ -153,19 +153,30 @@ class login(APIView):
         # check if 2nd factor auth is enabled
         if(user.is_two_factor_auth_enabled): 
              otp=random.randint(1001,9999)
-        
-        # send the mail
-        result=sendOTPEmail(emailTo=email,name=user.name,otp=otp)
-        
-        #save otp and ot expire  in user and create it
-        user.otp=otp
-        user.otpExpire= timezone.now()+timedelta(minutes=10)
-        user.save()
-        
-        #return the result
-        return finalResponse(True,result,"verification otp sent",201)
+             
+             # send the mail
+             result=sendOTPEmail(emailTo=email,name=user.name,otp=otp)
+             
+             #save otp and ot expire  in user and create it
+             user.otp=str(otp)
+             user.otpExpire= timezone.now()+timedelta(minutes=10)
+             user.save()
+             
+             #return the result
+             return finalResponse(True,result,"verification otp sent",201)
                  
-            
+        
+        # if 2nd factor auth is not enabled
+        #serialize the data
+        serialized_data=userModelSerializer(user,many=False)
+         
+        #create token and set it into cookies
+        token=generate_jwt_token(user.id)
+         
+        
+        # send response
+        return finalResponse(True,serialized_data.data,"user verified successfull",201,token=token)
+       
        
       
        
